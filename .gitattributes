@@ -1,0 +1,8 @@
+# Auto normalize line endings
+* text=auto
+
+# Use LF for Unix shell scripts
+*.sh text eol=lf
+
+# Use CRLF for Windows batch scripts
+*.cmd text eol=crlf
