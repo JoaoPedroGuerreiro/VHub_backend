@@ -14,6 +14,6 @@ import java.lang.annotation.Target;
 @Constraint(validatedBy = AdultValidator.class)
 public @interface Adult {
     String message() default "Must be at least 18 years old";
-    Class<Volunteers>[] groups() default {};
+    Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

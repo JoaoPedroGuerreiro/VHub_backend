@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.mapper.AssociationMapper;
 import com.example.backend.model.Associations;
 import com.example.backend.repository.AssociationsRepo;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 
 @WebMvcTest(AssociationController.class)
+@Import(AssociationMapper.class)
 public class AssociationControllerTest {
 
     @Autowired
@@ -30,17 +33,8 @@ public class AssociationControllerTest {
 
     @Test
     void shouldCreateNewAssociation() throws Exception {
-        Associations inputAssociation = new Associations();
-        inputAssociation.setName("Global Volunteers");
-        inputAssociation.setLocation("Portugal");
-        inputAssociation.setEventName("For the world");
-        inputAssociation.setDescription("Connects volunteers with global projects");
-        inputAssociation.setEmail("global@volunteers.com");
-        inputAssociation.setStartDate(LocalDate.of(2025, 5, 27));
-        inputAssociation.setEndDate(LocalDate.of(2025, 5, 31));
-
         Associations savedAssociation = new Associations();
-        savedAssociation.setId(1L); // Simulate DB-generated ID
+        savedAssociation.setId(1L);
         savedAssociation.setName("Global Volunteers");
         savedAssociation.setLocation("Portugal");
         savedAssociation.setEventName("For the world");
@@ -67,7 +61,7 @@ public class AssociationControllerTest {
         mockMvc.perform(post("/api/associations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonInput))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Global Volunteers"))
                 .andExpect(jsonPath("$.location").value("Portugal"))

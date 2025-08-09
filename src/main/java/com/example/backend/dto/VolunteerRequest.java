@@ -13,10 +13,10 @@ public class VolunteerRequest {
     private String name;
 
     @NotBlank(message = "Email is required.")
-    @Email(message = "Must be a valid email.")
+    @Email(message = "Email must be valid.")
     private String email;
 
-    @NotBlank(message = "Phone is required.")
+    @NotBlank(message = "Phone number is required.")
     private String phone;
 
     @NotBlank(message = "Country is required.")
@@ -28,6 +28,8 @@ public class VolunteerRequest {
     @NotNull(message = "Birthdate is required.")
     @Adult
     private LocalDate birthDate;
+
+    private boolean available;
 
     public String getName() {
         return name;
@@ -75,5 +77,13 @@ public class VolunteerRequest {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 }

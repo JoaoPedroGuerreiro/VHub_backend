@@ -10,6 +10,7 @@ public class VolunteerResponse {
     private String country;
     private String region;
     private LocalDate birthDate;
+    private boolean available;
 
     public Long getId() {
         return id;
@@ -65,5 +66,13 @@ public class VolunteerResponse {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 }
