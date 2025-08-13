@@ -16,19 +16,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import java.time.*;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 
 /**
  * Intentionally mixed styles for learning:
- *
- *  1) Tests WITHOUT @BeforeEach (manual setup per test)
- *     - Shows the “basic” way before learning lifecycle hooks.
- *
- *  2) Tests WITH @BeforeEach (shared setup)
- *     - Removes repetition; every test starts from the same baseline.
- *
- *  3) Special-case tests with a fixed Clock
- *     - Ignore @BeforeEach and inject a custom time source to make
- *       leap-year boundary behavior deterministic.
+ * <p>
+ * 1) Tests WITHOUT @BeforeEach (manual setup per test)
+ * - Shows the “basic” way before learning lifecycle hooks.
+ * <p>
+ * 2) Tests WITH @BeforeEach (shared setup)
+ * - Removes repetition; every test starts from the same baseline.
+ * <p>
+ * 3) Special-case tests with a fixed Clock
+ * - Ignore @BeforeEach and inject a custom time source to make
+ * leap-year boundary behavior deterministic.
  */
 
 public class AdultValidatorTest {
@@ -46,8 +48,9 @@ public class AdultValidatorTest {
      */
     @BeforeEach
     void setUp() {
+        Clock fixed = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC);
         validator = new AdultValidator(); // uses system clock (production behaviour).
-        today = LocalDate.now(); // snapshot of "today" for simple tests.
+        today = LocalDate.now(fixed); // snapshot of "today" for simple tests.
     }
 
     // ---------------------------------------------------------------------
@@ -209,4 +212,23 @@ public class AdultValidatorTest {
         //Assert: becomes adult on March 1st.
         assertTrue(result);
     }
+
+    //Experiment with LocalDate.now();
+    @Test
+    public void turns18Tomorrow_isNotAdultToday_butWillBeTomorrow_ifUsingRealNow() {
+
+        //LocalDate birth = LocalDate.now().plusDays(1).minusYears(18); // 17y 364d today
+
+        Clock fixedToday = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC);
+
+        //Using the current(impure) validator:
+        AdultValidator v = new AdultValidator(fixedToday); //uses LocalDate.now() inside.
+        LocalDate birth = LocalDate.of(2012, 1, 2); //17y 364d relative to 2030-01-01
+        //boolean today = v.isValid(birth, null);
+
+        //Image we run the same test tomorrow: the assertion would flip.
+        //assertFalse(today); //passes today, fails tomorrow with no code changes. // Lets test this again tomorrow (11-08-2025).
+        assertFalse(v.isValid(birth, null)); //deterministic forever
+    }
+
 }

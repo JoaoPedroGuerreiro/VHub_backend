@@ -2,6 +2,7 @@ package com.example.backend.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -14,11 +15,14 @@ public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
     //Keeping this "no-arguments" constructor is important since Bean Validation may instantiate the validator reflectively.
     public AdultValidator() {
 
+        System.out.println("AdultValidator(): no-arg");
         this.clock = Clock.systemDefaultZone();
     }
 
+    @Autowired
     public AdultValidator(Clock clock) {
 
+        System.out.println("AdultValidator(Clock): injected");
         this.clock = clock;
     }
 

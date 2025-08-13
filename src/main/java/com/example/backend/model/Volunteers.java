@@ -1,10 +1,7 @@
 package com.example.backend.model;
 
 import com.example.backend.validation.Adult;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,6 +36,7 @@ public class Volunteers {
     @NotBlank(message = "Region is required.")
     private String region;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN") //This will make SQL show the column as a 'tinyint(1)' an alias for 'BOOLEAN' and not the default bit(1) to make it easier to read.
     private boolean available;
 
 
