@@ -1,234 +1,149 @@
 package com.example.backend.validation;
 
 /*
-Imports:
-- Marks test methods (JUnit 5 annotation): we mark *methods*, not the whole class.
-- Static imports for assertTrue/assertFalse so assertions read like English.
-- Java Time API: LocalDate, Clock, ZoneId, ZonedDateTime, Instant for time control in tests.
-- @BeforeEach: shared setup that runs before *every* test.
+This file intentionally shows both:
+- A clean, deterministic suite using a fixed UTC Clock (the “automatic” setup).
+- A few demo tests that use the real system time, tagged so you can skip them in CI.
 */
 
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.time.*;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Intentionally mixed styles for learning:
- * <p>
- * 1) Tests WITHOUT @BeforeEach (manual setup per test)
- * - Shows the “basic” way before learning lifecycle hooks.
- * <p>
- * 2) Tests WITH @BeforeEach (shared setup)
- * - Removes repetition; every test starts from the same baseline.
- * <p>
- * 3) Special-case tests with a fixed Clock
- * - Ignore @BeforeEach and inject a custom time source to make
- * leap-year boundary behavior deterministic.
+ * AdultValidator tests
+ *
+ * Deterministic rule under test:
+ *   ChronoUnit.YEARS.between(birthDate, today) >= 18
+ *
+ * We freeze "today" with a fixed UTC Clock so results are deterministic forever.
  */
-
 public class AdultValidatorTest {
 
-    // --- Shared fields used by @BeforeEach section ---
-    // Not 'final' because they are assigned in setUp().
+    // ---------- Fixed clock (automatic setup for deterministic tests) ----------
+    private Clock fixed;
+    private LocalDate today;
+    private AdultValidator validator;
 
-    AdultValidator validator;
-    LocalDate today;
+    /** Always use UTC in tests to avoid TZ surprises across machines/CI. */
+    private static Clock fixedAt(LocalDate dayUtc) {
+        return Clock.fixed(dayUtc.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
+    }
 
-    /*
-     * JUnit 5 note:
-     * - Methods annotated with @BeforeEach/@Test do NOT need to be public.
-     * - The engine uses reflection; package-private is perfectly fine.
-     */
     @BeforeEach
     void setUp() {
-        Clock fixed = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC);
-        validator = new AdultValidator(); // uses system clock (production behaviour).
-        today = LocalDate.now(fixed); // snapshot of "today" for simple tests.
+        // Pretend "today" = 2030-01-01 UTC for all deterministic tests
+        fixed = fixedAt(LocalDate.of(2030, 1, 1));
+        today = LocalDate.now(fixed);
+        validator = new AdultValidator(fixed);
     }
 
     // ---------------------------------------------------------------------
-    // 1) Tests WITHOUT @BeforeEach (manual setup per test)
-    //    These show the basic approach because at this time I hadn't learned lifecycle hooks yet.
+    // Deterministic tests (cover all edge cases using the fixed clock)
     // ---------------------------------------------------------------------
 
-    @Test
-    public void exactly18YearsOld_shouldBeValid() {
-
-        //Arrange (manual)
-        LocalDate today = LocalDate.now();
-        LocalDate dob = today.minusYears(18);
-
-        //Act (manual instance)
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
-
-        //Assert
-        assertTrue(result);
+    // Clear interior cases
+    @Test void clearlyAdult_isValid() {
+        assertTrue(validator.isValid(today.minusYears(25), null));
     }
 
-    @Test
-    public void oneDayShyOf18_shouldBeInvalid() {
-
-        //Arrange
-        LocalDate today = LocalDate.now();
-        LocalDate dob = today.minusYears(18).plusDays(1);
-
-        //Act
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
-
-        //Assert
-        assertFalse(result);
+    @Test void clearlyUnderage_isInvalid() {
+        assertFalse(validator.isValid(today.minusYears(8), null));
     }
 
-    @Test
-    public void oneDayAfter18_shouldBeValid() {
-
-        //Arrange
-        LocalDate today = LocalDate.now();
-        LocalDate dob = today.minusYears(18).minusDays(1);
-
-        //Act
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
-
-        //Assert
-        assertTrue(result);
+    // Boundaries around 18
+    @Test void exactly18_isValid() {
+        assertTrue(validator.isValid(today.minusYears(18), null));
     }
 
-    @Test
-    public void clearlyUnderage_shouldBeInvalid() {
-
-        //Arrange
-        LocalDate today = LocalDate.now();
-        LocalDate dob = today.minusYears(8);
-
-        //Act
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
-
-        //Assert
-        assertFalse(result);
+    @Test void oneDayShyOf18_isInvalid() {
+        assertFalse(validator.isValid(today.minusYears(18).plusDays(1), null));
     }
 
-    @Test
-    public void clearlyAdult_shouldBeValid() {
-
-        //Arrange
-        LocalDate today = LocalDate.now();
-        LocalDate dob = today.minusYears(25);
-
-        //Act
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
-
-        //Assert
-        assertTrue(result);
+    @Test void oneDayAfter18_isValid() {
+        assertTrue(validator.isValid(today.minusYears(18).minusDays(1), null));
     }
 
-    @Test
-    public void nullBirthDate_shouldBeValid() {
+    // Null policy: @Adult is null-tolerant; presence is enforced by @NotNull on DTOs
+    @Test void nullBirthDate_isValid_because_presence_is_enforced_elsewhere() {
+        assertTrue(validator.isValid(null, null));
+    }
 
-        //Arrange: @Adult is null-tolerant by design; presence is enforced by @NotNull at DTO level.
-        LocalDate dob = null;
+    // Future date → invalid
+    @Test void birthDateInFuture_isInvalid() {
+        assertFalse(validator.isValid(today.plusDays(1), null));
+    }
 
-        //Act
-        AdultValidator adultValidator = new AdultValidator();
-        boolean result = adultValidator.isValid(dob, null);
+    // Leap-day policy: Feb 29 birthdays become adult on Mar 1 in non-leap years
+    // (These use a per-test fixed clock different from the class default.)
+    @Test void leapDay_Feb28_nonLeapYear_isInvalid() {
+        Clock c = fixedAt(LocalDate.of(2026, 2, 28)); // non-leap year
+        AdultValidator v = new AdultValidator(c);
+        assertFalse(v.isValid(LocalDate.of(2008, 2, 29), null));
+    }
 
-        //Assert
-        assertTrue(result);
+    @Test void leapDay_Mar01_nonLeapYear_isValid() {
+        Clock c = fixedAt(LocalDate.of(2026, 3, 1)); // non-leap year
+        AdultValidator v = new AdultValidator(c);
+        assertTrue(v.isValid(LocalDate.of(2008, 2, 29), null));
+    }
 
+    // Tiny extra demo that shows determinism at a birthday edge
+    @Test void turns18Tomorrow_fixedClock_demo() {
+        Clock c = fixedAt(LocalDate.of(2030, 1, 1));
+        AdultValidator v = new AdultValidator(c);
+        LocalDate birth = LocalDate.of(2012, 1, 2); // 17y 364d relative to 2030-01-01
+        assertFalse(v.isValid(birth, null)); // deterministic forever
     }
 
     // ---------------------------------------------------------------------
-    // 2) Tests WITH @BeforeEach (shared setup)
-    //    These use the 'validator' and 'today' fields initialized in setUp().
+    // This was the first approach I had with this test:
+    // Demo tests using the REAL system clock (can break at boundaries).
+    // Tagging them with "demo" I can still run everything (the default) or
+    // run only the deterministic ones with (mvn test -Dgroups=!demo).
     // ---------------------------------------------------------------------
 
-
-    @Test
-    public void futureBirthDate_shouldBeInvalid() {
-
-        //Arrange: using shared 'today' field from @BeforeEach.
-        LocalDate dob = today.plusDays(1);
-
-        //Act
-        boolean result = validator.isValid(dob, null);
-
-        //Assert
-        assertFalse(result);
+    @Tag("demo")
+    @Test void exactly18YearsOld_shouldBeValid_realNow() {
+        LocalDate t = LocalDate.now();
+        LocalDate dob = t.minusYears(18);
+        assertTrue(new AdultValidator().isValid(dob, null));
     }
 
-    // ---------------------------------------------------------------------
-    // 3) Special-case tests with a fixed Clock
-    //    These ignore @BeforeEach and build a validator bound to a fixed "today".
-    //    Policy chosen: Option B → Feb 29 birthdays become adult on Mar 1 in non-leap years.
-    // ---------------------------------------------------------------------
-
-    @Test
-    public void leapYearDob_Feb28NonLeapYear_shouldBeInvalid() {
-
-        //Freeze today (non-leap year) a day 'BEFORE' as is the majority convention worldwide approach: should a pearson birthday be after or before its day.
-        LocalDate fixedToday = LocalDate.of(2026, 2, 28);
-        ZonedDateTime zdt = fixedToday.atStartOfDay(ZoneId.systemDefault());
-        Instant instant = zdt.toInstant();
-        Clock clock = Clock.fixed(instant, ZoneId.systemDefault());
-        AdultValidator validatorWithFixedClock = new AdultValidator(clock);
-
-        //Arrange DOB (born on leap day in 2008)
-        LocalDate dob = LocalDate.of(2008, 2, 29);
-
-        //Act
-        boolean result = validatorWithFixedClock.isValid(dob, null);
-
-        //Assert: not yet adult on Feb 28.
-        assertFalse(result);
+    @Tag("demo")
+    @Test void oneDayShyOf18_shouldBeInvalid_realNow() {
+        LocalDate t = LocalDate.now();
+        LocalDate dob = t.minusYears(18).plusDays(1);
+        assertFalse(new AdultValidator().isValid(dob, null));
     }
 
-    @Test
-    public void leapYearDob_Mar01NonLeapYear_shouldBeValid() {
-
-        //Freeze today
-        LocalDate fixedToday = LocalDate.of(2026, 3, 1);
-        ZonedDateTime zdt = fixedToday.atStartOfDay(ZoneId.systemDefault());
-        Instant instant = zdt.toInstant();
-        Clock clock = Clock.fixed(instant, ZoneId.systemDefault());
-        AdultValidator validatorWithFixedClock = new AdultValidator(clock);
-
-        //Arrange DOB (born on leap day in 2008).
-        LocalDate dob = LocalDate.of(2008, 2, 29);
-
-        //Act
-        boolean result = validatorWithFixedClock.isValid(dob, null);
-
-        //Assert: becomes adult on March 1st.
-        assertTrue(result);
+    @Tag("demo")
+    @Test void oneDayAfter18_shouldBeValid_realNow() {
+        LocalDate t = LocalDate.now();
+        LocalDate dob = t.minusYears(18).minusDays(1);
+        assertTrue(new AdultValidator().isValid(dob, null));
     }
 
-    //Experiment with LocalDate.now();
-    @Test
-    public void turns18Tomorrow_isNotAdultToday_butWillBeTomorrow_ifUsingRealNow() {
-
-        //LocalDate birth = LocalDate.now().plusDays(1).minusYears(18); // 17y 364d today
-
-        Clock fixedToday = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC);
-
-        //Using the current(impure) validator:
-        AdultValidator v = new AdultValidator(fixedToday); //uses LocalDate.now() inside.
-        LocalDate birth = LocalDate.of(2012, 1, 2); //17y 364d relative to 2030-01-01
-        //boolean today = v.isValid(birth, null);
-
-        //Image we run the same test tomorrow: the assertion would flip.
-        //assertFalse(today); //passes today, fails tomorrow with no code changes. // Lets test this again tomorrow (11-08-2025).
-        assertFalse(v.isValid(birth, null)); //deterministic forever
+    @Tag("demo")
+    @Test void clearlyUnderage_shouldBeInvalid_realNow() {
+        LocalDate t = LocalDate.now();
+        LocalDate dob = t.minusYears(8);
+        assertFalse(new AdultValidator().isValid(dob, null));
     }
 
+    @Tag("demo")
+    @Test void clearlyAdult_shouldBeValid_realNow() {
+        LocalDate t = LocalDate.now();
+        LocalDate dob = t.minusYears(25);
+        assertTrue(new AdultValidator().isValid(dob, null));
+    }
+
+    @Tag("demo")
+    @Test void nullBirthDate_shouldBeValid_realNow() {
+        assertTrue(new AdultValidator().isValid(null, null));
+    }
 }

@@ -102,6 +102,15 @@
 				</configuration>
 			</plugin>
 
+			<!-- Uncomment the next plugin to exclude the demo tests in CI(Continuous Integration) or quick runs-->
+
+			<!-- <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludedGroups>demo</excludedGroups>
+				</configuration>
+			</plugin> -->
 
 		</plugins>
 	</build>

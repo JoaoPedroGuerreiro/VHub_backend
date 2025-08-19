@@ -12,17 +12,18 @@ public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
 
     private final Clock clock;
 
-    //Keeping this "no-arguments" constructor is important since Bean Validation may instantiate the validator reflectively.
+    /*
+    Keeping this "no-arguments" constructor is important since Bean Validation may instantiate
+    the validator reflectively contexts where Spring injection isn't active.
+    */
     public AdultValidator() {
 
-        System.out.println("AdultValidator(): no-arg");
         this.clock = Clock.systemDefaultZone();
     }
 
     @Autowired
     public AdultValidator(Clock clock) {
 
-        System.out.println("AdultValidator(Clock): injected");
         this.clock = clock;
     }
 
